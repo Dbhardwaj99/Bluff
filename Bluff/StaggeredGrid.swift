@@ -48,8 +48,3 @@ struct StaggeredGrid: View {
         }
     }
 }
-
-//struct ContentTabModel: Identifiable {
-//    let id = UUID()
-//    let color: Color // To differentiate items
-//}
