@@ -1,72 +1,13 @@
 //
-//  ContentView.swift
+//  GameView.swift
 //  Bluff
 //
-//  Created by Divyansh Bhardwaj on 27/03/25.
+//  Created by Divyansh Bhardwaj on 28/03/25.
 //
 
 import SwiftUI
 
-// MARK: - Model for a Playing Card
-struct CardDetail: Identifiable, Equatable {
-    let id = UUID()
-    let rank: String
-    let suit: String
-    let color: Color
-    var isSelected: Bool
-    
-    mutating func toggleSelection() {
-        isSelected.toggle()
-    }
-}
-
-// MARK: - Dictionary for Card Ranks and Suits
-
-enum Player: String, CaseIterable {
-    case player1 = "Player 1"
-    case player2 = "Player 2"
-    case player3 = "Player 3"
-    case player4 = "Player 4"
-}
-
-// MARK: - Card View
-struct CardView: View {
-    let card: CardDetail
-    let isSelected: Bool
-    let isHighlighted: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isHighlighted ? Color.green.opacity(0.5) : (isSelected ? Color.yellow.opacity(0.5) : card.color.opacity(0.2)))
-                .frame(width: 70, height: 120)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(card.color, lineWidth: 2)
-                )
-
-            VStack {
-                Text(card.rank)
-                    .font(.headline)
-                    .foregroundColor(card.color)
-                Text(card.suit)
-                    .font(.largeTitle)
-                    .foregroundColor(card.color)
-            }
-        }
-        .onTapGesture {
-            onTap()
-        }
-    }
-}
-
-enum PlayerDeck: CaseIterable {
-    case player1, player2, player3, player4
-}
-
-// MARK: - ContentView
-struct ContentView: View {
+struct GameView: View {
     @ObservedObject var gameViewModel: GameViewModel = GameViewModel()
     
     var body: some View {
@@ -128,8 +69,6 @@ struct ContentView: View {
     }
 }
 
-
-
 #Preview {
-    ContentView()
+    GameView()
 }

@@ -1,0 +1,7 @@
+{
+    "issuer": "https://divyansh.kinde.com",
+    "clientId": "48483900371b41d3bad9aaf3c6f71833",
+    "redirectUri": "com.imdb.Bluff://kinde_callback",
+    "postLogoutRedirectUri": "com.imdb.Bluff://kinde_logoutcallback",
+    "scope": "offline openid email profile"
+}
