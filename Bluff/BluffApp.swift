@@ -25,6 +25,7 @@ struct BluffApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .withRouter()
         }
     }
 }

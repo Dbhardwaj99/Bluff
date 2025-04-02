@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var user: UserProfile?
     @State private var presentAlert = false
     @State private var alertMessage = ""
+    @Environment(Router.self) var router
     
     private let logger: Logger?
     
@@ -27,7 +28,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if isAuthenticated {
-                GameView()
+                HomeView()
             } else {
                 LoginView(logger: self.logger, onLoggedIn: onLoggedIn)
                     .transition(.opacity)
@@ -35,9 +36,9 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            Task{
-                await logout()
-            }
+//            Task{
+//                await logout()
+//            }
         }
         .alert(isPresented: $presentAlert) {
             Alert(

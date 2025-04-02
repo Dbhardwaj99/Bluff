@@ -55,7 +55,7 @@ struct LoginView: View {
                             .foregroundStyle(.white)
                             .overlay(Text("Sign In")
                                 .font(.headline)
-                                .foregroundStyle(.blue))
+                                .foregroundStyle(.black))
                     }
                     
                     Button(action: register) {
