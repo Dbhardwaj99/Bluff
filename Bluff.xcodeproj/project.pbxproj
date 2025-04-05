@@ -13,6 +13,7 @@
 		C1C901DE2D96B7E00065AAB0 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = C1C901DD2D96B7E00065AAB0 /* FirebaseDatabase */; };
 		C1C901E02D96B7E00065AAB0 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C1C901DF2D96B7E00065AAB0 /* FirebaseFirestore */; };
 		C1C9032D2D96CABE0065AAB0 /* KindeSDK in Frameworks */ = {isa = PBXBuildFile; productRef = C1C9032C2D96CABE0065AAB0 /* KindeSDK */; };
+		C1C903452DA1567A0065AAB0 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = C1C903442DA1567A0065AAB0 /* SocketIO */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +35,7 @@
 			files = (
 				C1C901D82D96B7E00065AAB0 /* FirebaseAnalytics in Frameworks */,
 				C1C9032D2D96CABE0065AAB0 /* KindeSDK in Frameworks */,
+				C1C903452DA1567A0065AAB0 /* SocketIO in Frameworks */,
 				C1C901DC2D96B7E00065AAB0 /* FirebaseCore in Frameworks */,
 				C1C901DE2D96B7E00065AAB0 /* FirebaseDatabase in Frameworks */,
 				C1C901E02D96B7E00065AAB0 /* FirebaseFirestore in Frameworks */,
@@ -86,6 +88,7 @@
 				C1C901DD2D96B7E00065AAB0 /* FirebaseDatabase */,
 				C1C901DF2D96B7E00065AAB0 /* FirebaseFirestore */,
 				C1C9032C2D96CABE0065AAB0 /* KindeSDK */,
+				C1C903442DA1567A0065AAB0 /* SocketIO */,
 			);
 			productName = Bluff;
 			productReference = C1B28E702D94A22B004C5E76 /* Bluff.app */;
@@ -118,6 +121,7 @@
 			packageReferences = (
 				C1C901D62D96B7E00065AAB0 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				C1C9032B2D96CABE0065AAB0 /* XCRemoteSwiftPackageReference "kinde-sdk-ios" */,
+				C1C903432DA1567A0065AAB0 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C1B28E712D94A22B004C5E76 /* Products */;
@@ -369,6 +373,14 @@
 				minimumVersion = 1.4.3;
 			};
 		};
+		C1C903432DA1567A0065AAB0 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -401,6 +413,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C1C9032B2D96CABE0065AAB0 /* XCRemoteSwiftPackageReference "kinde-sdk-ios" */;
 			productName = KindeSDK;
+		};
+		C1C903442DA1567A0065AAB0 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C1C903432DA1567A0065AAB0 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
