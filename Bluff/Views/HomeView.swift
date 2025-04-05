@@ -15,7 +15,7 @@ struct HomeView: View {
             Text("Hi Player")
             
             Button(action: {
-                router.navigateToGame()
+                router.navigateToGame(toJoin: false)
             }) {
                 Rectangle()
                     .cornerRadius(15)
@@ -28,7 +28,7 @@ struct HomeView: View {
             }
             
             Button(action: {
-                router.navigateToGame()
+                router.navigateToGame(toJoin: true)
             }) {
                 Rectangle()
                     .cornerRadius(15)

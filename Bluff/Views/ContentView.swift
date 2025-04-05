@@ -36,9 +36,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-//            Task{
-//                await logout()
-//            }
+
         }
         .alert(isPresented: $presentAlert) {
             Alert(

@@ -12,7 +12,10 @@ import Observation
 @Observable
 class Router {
     var path = NavigationPath()
-    func navigateToGame() {
+    var toJoin = false
+    
+    func navigateToGame(toJoin: Bool) {
+        self.toJoin = toJoin
         path.append(Route.game)
     }
     func navigateToHome() {
@@ -38,11 +41,11 @@ struct RouterViewModifier: ViewModifier {
         Group {
             switch route {
             case .game:
-                GameView()
+                GameView(gameStyle: router.toJoin ? .player : .host)
             case .home:
                 HomeView()
             case .setting:
-                GameView()
+                GameView(gameStyle: router.toJoin ? .player : .host)
             }
         }
         .environment(router)

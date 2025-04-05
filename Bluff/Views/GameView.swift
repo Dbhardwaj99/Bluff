@@ -7,12 +7,37 @@
 
 import SwiftUI
 
+enum GameStyle {
+    case host
+    case player
+}
+
 struct GameView: View {
-    @ObservedObject var gameViewModel: NewGameViewModel = NewGameViewModel()
-    @State var seededCard = CardDetail(rank: "1", suit: "😜", color: .blue, isSelected: false, status: .notPlayed)
+    @State var gameStyle: GameStyle
+    @ObservedObject var gameViewModel: NewGameViewModel
+    
+    init(
+        gameStyle: GameStyle
+    ) {
+        self.gameStyle = gameStyle
+        self.gameViewModel = NewGameViewModel(
+            gameStyle: gameStyle
+        )
+    }
+    
+    @State var seededCard = CardDetail(rank: "1", suit: "😜", color: "red", isSelected: false, status: .notPlayed)
     
     var body: some View {
         VStack(alignment: .center) {
+            HStack {
+                Text("Players: \(gameViewModel.gameData.allPlayers.count)/6")
+                Spacer()
+                Text("Turn: \(gameViewModel.gameData.currentPlayer.rawValue.capitalized)")
+            }
+            .font(.caption)
+            .padding()
+            .background(.ultraThinMaterial)
+            
             ForEach(Array(gameViewModel.gameData.cardDetails.filter { key, value in
                 switch key {
                 case .player1, .player2, .player3, .player4, .player5, .player6:
@@ -63,7 +88,7 @@ struct GameView: View {
             }
             
             ZStack{
-                if let playerCards = gameViewModel.gameData.cardDetails[.player1] {
+                if let playerCards = gameViewModel.gameData.cardDetails[getCorrectStatus(player: gameViewModel.assignedPlayer)] {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
                             ForEach(playerCards, id: \.id) { item in
@@ -108,27 +133,29 @@ struct GameView: View {
                     .frame(height: 300)
                     .padding()
                 }
-                Button(action: {
-//                    gameViewModel.playTurn()
-                }) {
-                    Circle()
-                        .fill(.yellow.shadow(.drop(color: .black, radius: 10)))
-//                        .fill(.yellow.shadow(.inner(color: .black, radius: 10)))
-                        .frame(width: 200, height: 200)
-                        .frame(width: 130, height: 50)
-                        .overlay(content: {
-                            Text(gameViewModel.isPlayerTurn ? "Play Turn" : "Check Cards")
-                                .foregroundStyle(.white)
-                        })
+                HStack{
+                    Button(action: {
+                        gameViewModel.playTurn()
+                    }) {
+                        Circle()
+                            .fill(.yellow.shadow(.drop(color: .black, radius: 10)))
+                            .frame(width: 200, height: 200)
+                            .frame(width: 130, height: 50)
+                            .overlay(content: {
+                                Text(gameViewModel.isPlayerTurn ? "Play Turn" : "Check Cards")
+                                    .foregroundStyle(.white)
+                            })
+                    }
+                    .offset(y: 100)
+                    .disabled(!gameViewModel.isPlayerTurn)
+                    
                 }
-                .offset(y: 100)
-                .disabled(!gameViewModel.isPlayerTurn)
             }
         }
         .background(.gray)
     }
     
-    func displayName(for status: cardStatus) -> String {
+    func displayName(for status: CardStatus) -> String {
         switch status {
         case .player1: return "Player 1"
         case .player2: return "Player 2"
@@ -139,10 +166,21 @@ struct GameView: View {
         default: return ""
         }
     }
+    
+    func getCorrectStatus(player: Player) -> CardStatus {
+        switch player {
+        case .player1: return .player1
+        case .player2: return .player2
+        case .player3: return .player3
+        case .player4: return .player4
+        case .player5: return .player5
+        case .player6: return .player6
+        }
+    }
 }
 
 #Preview {
-    GameView()
+    GameView(gameStyle: .host)
 }
 
 
