@@ -26,15 +26,15 @@ struct ContentView: View {
     }
     
     var body: some View {
-        Group {
-            if isAuthenticated {
+//        Group {
+//            if isAuthenticated {
                 HomeView()
-            } else {
-                LoginView(logger: self.logger, onLoggedIn: onLoggedIn)
-                    .transition(.opacity)
-                    .animation(.easeInOut, value: isAuthenticated)
-            }
-        }
+//            } else {
+//                LoginView(logger: self.logger, onLoggedIn: onLoggedIn)
+//                    .transition(.opacity)
+//                    .animation(.easeInOut, value: isAuthenticated)
+//            }
+//        }
         .onAppear {
 
         }

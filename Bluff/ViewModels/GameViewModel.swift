@@ -10,11 +10,18 @@ import SwiftUI
 import Combine
 import SocketIO
 
+enum GameStatus: String, Codable {
+    case notStarted
+    case ongoing
+    case completed
+}
+
 class NewGameViewModel: ObservableObject {
     @Published var gameData: GameData
    
     private var gameId: String = ""
     private var hasJoinedGame = false
+    @Published var alreadyCardSelected = false
     let gameStyle : GameStyle
     var assignedPlayer: Player
     @Published var callBluff: Bool = false {
@@ -32,7 +39,7 @@ class NewGameViewModel: ObservableObject {
         self.gameStyle = gameStyle
         self.gameData = GameData(
             playerDeck: [],
-            allPlayers: [],
+            allPlayers: [], gameStatus: .notStarted,
             currentPlayer: .player1
         )
         self.assignedPlayer = .player1
@@ -41,7 +48,7 @@ class NewGameViewModel: ObservableObject {
         if gameStyle == .host{
             initialiseGame()
         }else{
-            joinGame(gameId: "LOUAX")
+//            joinGame(gameId: "LOUAX")
         }
     }
    
@@ -69,6 +76,31 @@ class NewGameViewModel: ObservableObject {
 //            }
 //        }
 //    }
+    
+    func handleDoubleTap(item: CardDetail) {
+        guard isPlayerTurn else { return }
+
+        // If a card is already selected as round card, reset all others
+        if alreadyCardSelected {
+            for i in gameData.playerDeck.indices {
+//                if gameData.playerDeck[i].status == assignedPlayerStatus {
+                    gameData.playerDeck[i].isRoundCard = false
+//                }
+            }
+        }
+
+        // Find the index of the tapped card
+        guard let index = gameData.playerDeck.firstIndex(where: { $0.id == item.id }) else {
+            return
+        }
+
+        // Set isRoundCard to true for the tapped card
+        gameData.playerDeck[index].isRoundCard = true
+        alreadyCardSelected = true
+
+        // Rebuild the cardDetails
+        gameData.updateCardDetails()
+    }
     
     func joinGame(gameId: String) {
         FirebaseManager.shared.observeGameData(gameId: gameId) { [weak self] newData in
@@ -136,7 +168,17 @@ class NewGameViewModel: ObservableObject {
         for (suit, ranks) in cardData {
             for rank in ranks {
                 let color = (suit == "♥️" || suit == "♦️") ? "red" : "black"
-                deck.append(CardDetail(rank: rank, suit: suit, color: color, isSelected: false, status: .notPlayed))
+                deck
+                    .append(
+                        CardDetail(
+                            rank: rank,
+                            suit: suit,
+                            color: color,
+                            isSelected: false,
+                            status: .notPlayed,
+                            isRoundCard: false
+                        )
+                    )
             }
         }
 
@@ -152,7 +194,7 @@ class NewGameViewModel: ObservableObject {
         // Create initial gameData
         var gameData = GameData(
             playerDeck: deck,
-            allPlayers: allPlayers,
+            allPlayers: allPlayers, gameStatus: .notStarted,
             currentPlayer: allPlayers[0],
             currentStash: currentStash
         )
@@ -224,46 +266,54 @@ class NewGameViewModel: ObservableObject {
     
     func handleCardTap(item: CardDetail) {
         guard isPlayerTurn else { return }
-        
-        guard let playerDeckIndex = gameData.cardDetails[.player1]?.firstIndex(where: { $0.id == item.id }) else {
+
+        // Find the index in the main playerDeck
+        guard let index = gameData.playerDeck.firstIndex(where: { $0.id == item.id/* && $0.status == assignedPlayerStatus */}) else {
             return
         }
-        
-        gameData.cardDetails[.player1]?[playerDeckIndex].isSelected.toggle()
+
+        // Toggle selection
+        gameData.playerDeck[index].isSelected.toggle()
+
+        // Rebuild cardDetails
+        gameData.updateCardDetails()
     }
     
     func playTurn() {
         guard isPlayerTurn else { return }
+        guard alreadyCardSelected else { return }
 
-        // 1. Get selected cards
-        guard !gameData.playerDeck.filter({ $0.status == assignedPlayerStatus && $0.isSelected }).isEmpty else {
+        // Filter selected cards from player's own deck
+        let selectedCards = gameData.playerDeck.filter {
+            $0.isSelected
+        }
+
+        guard !selectedCards.isEmpty else {
             print("⚠️ No cards selected.")
             return
         }
 
-        // 2. Update selected cards
-        gameData.playerDeck = gameData.playerDeck.map { card in
-            var updated = card
-            if updated.status == assignedPlayerStatus && updated.isSelected {
-                updated.status = .inStash
-                updated.isSelected = false
+        // 1. Mark selected cards as inStash and deselect
+        for i in gameData.playerDeck.indices {
+            if /*gameData.playerDeck[i].status == assignedPlayerStatus &&*/ gameData.playerDeck[i].isSelected {
+                gameData.playerDeck[i].status = .inStash
+                gameData.playerDeck[i].isSelected = false
             }
-            return updated
         }
 
-        // 3. Refresh grouped card details
+        // 2. Update cardDetails
         gameData.updateCardDetails()
 
-        // 4. Advance turn
+        // 3. Advance turn
         if let currentIndex = gameData.allPlayers.firstIndex(of: gameData.currentPlayer) {
             let nextIndex = (currentIndex + 1) % gameData.allPlayers.count
             gameData.currentPlayer = gameData.allPlayers[nextIndex]
         }
 
-        // 5. Sync with Firebase
+        // 4. Save to Firebase
         FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
 
-        print("✅ Turn played and data synced.")
+        print("✅ Played turn with \(selectedCards.count) cards.")
     }
     
     func cardStatus(for player: Player) -> CardStatus {

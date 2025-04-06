@@ -15,14 +15,23 @@ struct CardDetail: Identifiable, Equatable, Codable {
     let color: String  // Represent color as "red" or "black"
     var isSelected: Bool
     var status: CardStatus
+    var isRoundCard:Bool
     
-    init(rank: String, suit: String, color: String, isSelected: Bool, status: CardStatus) {
+    init(
+        rank: String,
+        suit: String,
+        color: String,
+        isSelected: Bool,
+        status: CardStatus,
+        isRoundCard: Bool
+    ) {
         self.id = UUID()
         self.rank = rank
         self.suit = suit
         self.color = color
         self.isSelected = isSelected
         self.status = status
+        self.isRoundCard = isRoundCard
     }
 }
 
@@ -54,6 +63,7 @@ struct GameData: Codable {
         }
     }
     var allPlayers: [Player]
+    var gameStatus: GameStatus? = .notStarted
     var currentPlayer: Player
     var currentStash: [Player: [CardDetail]]?
     var cardDetails: [CardStatus: [CardDetail]] = [:]

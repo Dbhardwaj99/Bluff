@@ -11,8 +11,8 @@ import SwiftUI
 struct CardView: View {
     let card: CardDetail
     let isSelected: Bool
-    let isHighlighted: Bool
     let onTap: () -> Void
+    let onDoubleTap: () -> Void  // 👈 New closure
     var Cheight: CGFloat
     var Cwidth: CGFloat
 
@@ -20,12 +20,10 @@ struct CardView: View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
                 .fill(
-                    isHighlighted ? Color.green
-                        .opacity(0.5) : (
-                            isSelected ? Color.yellow
-                                .opacity(0.5) : card.swiftUIColor
-                                .opacity(0.2)
-                        )
+                    isSelected ? Color.green.opacity(0.5) : Color.yellow.opacity(0.5)
+                )
+                .fill(
+                    card.isRoundCard ? Color.mint : .clear
                 )
                 .frame(width: Cwidth, height: Cheight)
                 .overlay(
@@ -44,6 +42,9 @@ struct CardView: View {
         }
         .onTapGesture {
             onTap()
+        }
+        .onTapGesture(count: 2) {  // 👈 Double-tap gesture
+            onDoubleTap()
         }
     }
 }
