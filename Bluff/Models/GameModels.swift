@@ -56,6 +56,12 @@ enum Player: String, CaseIterable, Codable {
     case player6 = "Player 6"
 }
 
+struct Stash: Codable {
+    var currentStashCards: [Player: [CardDetail]] = [:]
+    var roundCard: CardDetail?
+    var lastPlayer: Player? // 👈 Add this
+}
+
 struct GameData: Codable {
     var playerDeck: [CardDetail] {
         didSet {
@@ -65,74 +71,10 @@ struct GameData: Codable {
     var allPlayers: [Player]
     var gameStatus: GameStatus? = .notStarted
     var currentPlayer: Player
-    var currentStash: [Player: [CardDetail]]?
+    var currentStash: Stash?
     var cardDetails: [CardStatus: [CardDetail]] = [:]
     
     mutating func updateCardDetails() {
         cardDetails = Dictionary(grouping: playerDeck, by: { $0.status })
     }
 }
-
-//struct GameData{
-//    var playerDeck: [CardDetail] {
-//        didSet {
-//            updateCardDetails()
-//        }
-//    }
-//    var allPlayers: [Player]
-//    var currentPlayer: Player
-//    var currentStash: [Player: [CardDetail]]
-//    
-//    var cardDetails: [cardStatus: [CardDetail]] = [:]
-//    
-//    init() {
-//        self.allPlayers = [
-//            Player.player1,
-//            Player.player2,
-//            Player.player3
-//        ]
-//        
-//        self.currentPlayer = allPlayers[0]
-//        self.currentStash = [:]
-//        
-//        var deck: [CardDetail] = []
-//        let cardData: [String: [String]] = [
-//            "♠️": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
-//            "♥️": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
-//            "♦️": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
-//            "♣️": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
-//            "🃏": ["Joker", "Joker", "Joker"]
-//        ]
-//        
-//        for (suit, ranks) in cardData {
-//            for rank in ranks {
-//                let color: Color = (suit == "♥️" || suit == "♦️") ? .red : .black
-//                deck.append(CardDetail(rank: rank, suit: suit, color: color, isSelected: false, status: .notPlayed))
-//            }
-//        }
-//        
-//        deck.shuffle()
-//        
-//        for (index, _) in deck.enumerated() {
-//            switch index % 3 {
-//            case 0: deck[index].status = .player1
-//            case 1: deck[index].status = .player2
-//            case 2: deck[index].status = .player3
-//            default: break
-//            }
-//        }
-//        
-//        self.playerDeck = deck
-//        self.updateCardDetails()
-//        print("Player 1 cards: \(cardDetails[.player1] ?? [])\nPlayer 2 cards: \(cardDetails[.player2] ?? [])\nPlayer 3 cards: \(cardDetails[.player3] ?? [])")
-//    }
-//    
-//    mutating func updateCardDetails() {
-//        cardDetails = Dictionary(grouping: playerDeck, by: { $0.status })
-//    }
-//}
-
-
-//enum PlayerDeck: CaseIterable {
-//    case player1, player2, player3, player4
-//}

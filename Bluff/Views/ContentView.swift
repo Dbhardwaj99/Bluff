@@ -94,3 +94,9 @@ extension ContentView {
 #Preview {
     ContentView()
 }
+
+//TODO: Bluf logic needs to improved
+//TODO: State should be clearly visible(Keep log)
+//TODO: sheet open roundcard before selecting cards
+//TODO: Need a better visualisation(assecding order)
+

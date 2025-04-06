@@ -16,6 +16,8 @@ struct GameView: View {
     @State var gameStyle: GameStyle
     @ObservedObject var gameViewModel: NewGameViewModel
     @State var enteredRoomCode: String = ""
+    @State var showBluffCardSelection = false
+    @State private var selectedBluffCard: CardDetail? = nil
     
     init(
         gameStyle: GameStyle
@@ -38,16 +40,46 @@ struct GameView: View {
     var body: some View {
         ZStack{
             VStack(alignment: .center) {
-                HStack {
-                    Text("Players: \(gameViewModel.gameData.allPlayers.count)/6")
-                    Spacer()
-                    Text("Turn: \(gameViewModel.gameData.currentPlayer.rawValue.capitalized)")
-                }
-                .font(.caption)
-                .padding()
-                .background(.ultraThinMaterial)
-                .frame(height: 50)
+                headerView
                 
+                infoView
+                
+                Spacer()
+                
+                cardArena
+                
+                myCards
+                    
+                playerButton
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black)
+            .blur(radius: gameViewModel.gameData.gameStatus == .notStarted ? 5 : 0)
+            
+            if gameViewModel.gameData.gameStatus == .notStarted {
+                lobby
+            }
+        }
+    }
+    
+    @ViewBuilder
+    var headerView: some View {
+        HStack (alignment: .center){
+            Text("\(gameViewModel.gameData.currentPlayer.rawValue.capitalized) is playing...")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+        }
+        .padding(.horizontal, 40)
+        .background(gameViewModel.isPlayerTurn ? .green : .red)
+        .foregroundStyle(.white)
+        .frame(height: 50)
+        .frame(maxWidth: .infinity)
+    }
+    
+    @ViewBuilder
+    var infoView: some View {
+        VStack{
+            ScrollView{
                 ForEach(Array(gameViewModel.gameData.cardDetails.filter { key, value in
                     switch key {
                     case .player1, .player2, .player3, .player4, .player5, .player6:
@@ -58,198 +90,220 @@ struct GameView: View {
                 }), id: \.0) { key, value in // Use `.0` as the ID (key of the tuple)
                     HStack {
                         Text("\(displayName(for: key))")
+                            .fontWeight(.bold)
                         Spacer()
                         Text("\(value.count) cards")
                     }
-                    .background(.white)
+                    .padding(.horizontal, 20)
+                    .foregroundStyle(.white)
                     .frame(height: 10)
                 }
-                
-                Text(gameViewModel.isPlayerTurn ? "Your Turn" : "AI is playing...")
-                    .font(.title)
-                    .bold()
-                    .frame(height: 20)
-                
-                VStack{
-                    let thrownCards = gameViewModel.gameData.cardDetails[.inStash] ?? []
-                    
-                    if thrownCards.isEmpty {
-                        Text("No thrown cards yet")
-                            .foregroundColor(.white)
-                            .font(.largeTitle)
-                            .padding()
-                            .frame(height: 200)
-                    } else {
-                        StaggeredGrid(
-                            columns: 6,
-                            spacing: 10,
-                            items: thrownCards
-                        ) { item in
-                            CardView(card: item,
-                                     isSelected: item.isSelected,
-//                                     isHighlighted: item.isSelected,
-                                     onTap: {}, onDoubleTap: {},
-                                     Cheight: 60,
-                                     Cwidth: 40
-                            )
-                        }
-                        .frame(height: 200)
-                        .padding()
-                    }
-                }
-                
-                VStack{
-                    if let playerCards = gameViewModel.gameData.cardDetails[getCorrectStatus(player: gameViewModel.assignedPlayer)] {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack {
-                                ForEach(playerCards, id: \.id) { item in
-                                    GeometryReader { geometry in
-                                        CardView(
-card: item,
-                                                 isSelected: item.isSelected,
-//                                                 isHighlighted: item.isSelected,
-                                                 onTap: {
-                                            gameViewModel.handleCardTap(item: item)
-                                        },
-                                                 onDoubleTap : {
-                                            gameViewModel.handleCardTap(item: item)
-                                            gameViewModel
-                                                         .handleDoubleTap(
-                                                            item: item
-                                                         )
-                                        },
-                                                 Cheight: 150,
-                                                 Cwidth: 100
-                                        )
-                                        .rotation3DEffect(
-                                            Angle(
-                                                degrees: Double((geometry.frame(in: .global).minX - 20) / 100)
-                                            ),
-                                            axis: (x: 0, y: 1, z: 0),
-                                            anchor: .center,
-                                            anchorZ: 0.0,
-                                            perspective: 0.5
-                                        )
-                                    }
-                                    .containerRelativeFrame(
-                                        .horizontal,
-                                        count: 2,
-                                        spacing: 1
-                                    )
-                                    .scrollTransition { content, phase in
-                                        content
-                                            .opacity(phase.isIdentity ? 1 : 0)
-                                            .scaleEffect(x: phase.isIdentity ? 1.0 : 0.3,
-                                                         y: phase.isIdentity ? 1.0 : 0.3)
-                                            .offset(y: phase.isIdentity ? 0 : 50)
-                                    }
-                                }
-                            }
-                            .scrollTargetLayout()
-                        }
-                        .contentMargins(16, for: .scrollContent)
-                        .scrollTargetBehavior(.viewAligned)
-                        .frame(height: 200)
-                        .padding()
-                    }
-                    HStack{
-                        Button(action: {
-                            if gameViewModel.isPlayerTurn{
-                                gameViewModel.playTurn()
-                            }else{
-                                gameViewModel.checkBluff()
-                            }
-                        }) {
-                            Rectangle()
-                                .fill(gameViewModel.isPlayerTurn ? .yellow: .red)
-                                .frame(width: 280, height: 100)
-                                .overlay(content: {
-                                    Text(gameViewModel.isPlayerTurn ? "Play Turn" : "Check Cards")
-                                        .foregroundStyle(.white)
-                                })
-                        }
-//                        .offset(y: 100)
-//                        .disabled(!gameViewModel.isPlayerTurn)
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            gameViewModel.pass()
-                        }) {
-                            Rectangle()
-                                .fill(
-                                    .purple
-                                        .shadow(
-                                            .drop(color: .black, radius: 10)
-                                        )
-                                )
-                                .frame(width: 130, height: 100)
-                                .overlay(content: {
-                                    Text(gameViewModel.isPlayerTurn ? "Pass" : "Check Stats")
-                                        .foregroundStyle(.white)
-                                })
-                        }
-//                        .offset(y: 100)
-                        .disabled(!gameViewModel.isPlayerTurn)
-                        
-                    }
-                }
-            }
-            .background(.gray)
-            .blur(radius: gameViewModel.gameData.gameStatus == .notStarted ? 5 : 0)
-            
-            if gameViewModel.gameData.gameStatus == .notStarted {
-                VStack(spacing: 24) {
-                    if gameViewModel.gameStyle == .host {
-                        Text("Start game")
-                            .font(.largeTitle)
-                            .foregroundStyle(.blue)
-                        
-                        Button(action: {
-                            gameViewModel.gameData.gameStatus = .ongoing
-                            gameViewModel.saveGame()
-                        }) {
-                            Text("Start Game")
-                                .font(.headline)
-                                .frame(width: 130, height: 50)
-                                .background(.yellow)
-                                .foregroundColor(.black)
-                                .cornerRadius(12)
-                                .shadow(radius: 8)
-                        }
-                    } else {
-                        Text("Join a Room")
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(.white)
-
-                        TextField("Enter Room Code", text: $enteredRoomCode)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .padding()
-                            .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.9)))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.blue.opacity(0.6), lineWidth: 2)
-                            )
-                            .padding(.horizontal)
-
-                        Button(action: {
-                            gameViewModel.joinGame(gameId: enteredRoomCode)
-                        }) {
-                            Text("Join Game")
-                                .font(.headline)
-                                .frame(width: 130, height: 50)
-                                .background(.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                                .shadow(radius: 8)
-                        }
-                    }
-                }
-                .padding()
-                .frame(width: 300, height: 300)
-                .foregroundStyle(.yellow)
             }
         }
+        .frame(height: 80)
+    }
+    
+    @ViewBuilder
+    var cardArena: some View {
+        VStack {
+            let thrownCards = gameViewModel.gameData.cardDetails[.inStash] ?? []
+            
+            if thrownCards.isEmpty {
+                Text("No thrown cards yet")
+                    .foregroundColor(.white)
+                    .font(.largeTitle)
+                    .padding()
+                    .frame(height: 300)
+            } else {
+                StaggeredGrid(
+                    columns: 6,
+                    spacing: 10,
+                    items: thrownCards
+                ) { item in
+                    CardView(
+                        card: item,
+                        isSelected: item.isSelected,
+                        onTap: {},
+                        onDoubleTap: {},
+                        Cheight: 60,
+                        Cwidth: 40
+                    )
+                }
+                .frame(height: 300)
+                .padding()
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
+        .background(Color.green)
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white, lineWidth: 5)
+        )
+    }
+    
+    @ViewBuilder
+    var myCards: some View {
+        if let playerCards = gameViewModel.gameData.cardDetails[getCorrectStatus(player: gameViewModel.assignedPlayer)] {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack {
+                    ForEach(playerCards, id: \.id) { item in
+                        GeometryReader { geometry in
+                            CardView(
+card: item,
+                                     isSelected: item.isSelected,
+                                     onTap: {
+                                gameViewModel.handleCardTap(item: item)
+                            },
+                                     onDoubleTap : {
+                                gameViewModel
+                                             .handleDoubleTap(
+                                                item: item
+                                             )
+                            },
+                                     Cheight: 90,
+                                     Cwidth: 60
+                            )
+                            .rotation3DEffect(
+                                Angle(
+                                    degrees: Double((geometry.frame(in: .global).minX - 20) / 100)
+                                ),
+                                axis: (x: 0, y: 1, z: 0),
+                                anchor: .center,
+                                anchorZ: 0.0,
+                                perspective: 0.5
+                            )
+                        }
+                        .containerRelativeFrame(
+                            .horizontal,
+                            count: 4,
+                            spacing: 1
+                        )
+                        .scrollTransition { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1 : 0)
+                                .scaleEffect(x: phase.isIdentity ? 1.0 : 0.3,
+                                             y: phase.isIdentity ? 1.0 : 0.3)
+                                .offset(y: phase.isIdentity ? 0 : 50)
+                        }
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .contentMargins(16, for: .scrollContent)
+            .scrollTargetBehavior(.viewAligned)
+            .frame(height: 120)
+            .padding()
+        }
+    }
+    
+    @ViewBuilder
+    var playerButton: some View {
+        HStack {
+            Button(action: {
+                if gameViewModel.isPlayerTurn {
+                    if gameViewModel.gameData.currentStash?.currentStashCards.isEmpty ?? true {
+                        showBluffCardSelection = true
+                    } else {
+                        gameViewModel.playTurn()
+                    }
+                } else {
+                    gameViewModel.checkBluff()
+                }
+            }) {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(gameViewModel.isPlayerTurn ? Color.yellow : Color.red)
+                    .shadow(color: .black, radius: 2)
+                    .frame(width: 220, height: 100)
+                    .overlay {
+                        Text(gameViewModel.isPlayerTurn ? "Play Turn" : "Call Bluff")
+                            .foregroundStyle(.white)
+                    }
+            }
+            
+            Spacer(minLength: 0)
+            
+            Button(action: {
+                gameViewModel.pass()
+            }) {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.purple.shadow(.drop(color: .black, radius: 2)))
+                    .frame(width: 120, height: 100)
+                    .overlay {
+                        Text(gameViewModel.isPlayerTurn ? "Pass" : "Check Stats")
+                            .foregroundStyle(.white)
+                    }
+            }
+            .disabled(!gameViewModel.isPlayerTurn)
+        }
+        .padding(.horizontal, 20)
+        .sheet(isPresented: $showBluffCardSelection, onDismiss: {
+            if let card = selectedBluffCard {
+                gameViewModel.playTurn(with: card)
+            }
+        }) {
+            BluffCardSelectionView(selectedCard: $selectedBluffCard)
+        }
+    }
+    
+    @ViewBuilder
+    var lobby: some View {
+        VStack(spacing: 24) {
+            if gameViewModel.gameStyle == .host {
+                Text("Start game")
+                    .font(.largeTitle)
+                    .foregroundStyle(.blue)
+                
+                Button(action: {
+                    gameViewModel.gameData.gameStatus = .ongoing
+                    gameViewModel.saveGame()
+                }) {
+                    Text("Start Game")
+                        .font(.headline)
+                        .frame(width: 130, height: 50)
+                        .background(.yellow)
+                        .foregroundColor(.black)
+                        .cornerRadius(12)
+                        .shadow(radius: 8)
+                }
+            } else {
+                if !gameViewModel.hasJoinedGame{
+                    Text("Join a Room")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.white)
+                    
+                    TextField("Enter Room Code", text: $enteredRoomCode)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.9)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.blue.opacity(0.6), lineWidth: 2)
+                        )
+                        .padding(.horizontal)
+                    
+                    Button(action: {
+                        gameViewModel.joinGame(gameId: enteredRoomCode)
+                    }) {
+                        Text("Join Game")
+                            .font(.headline)
+                            .frame(width: 130, height: 50)
+                            .background(.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                            .shadow(radius: 8)
+                    }
+                } else{
+                    Text("Waiting for host to start Game")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .padding()
+        .frame(width: 300, height: 300)
+        .foregroundStyle(.yellow)
     }
     
     func displayName(for status: CardStatus) -> String {
@@ -307,6 +361,69 @@ struct Parallax_ScrollView: View {
                 }
             }
             .padding()
+        }
+    }
+}
+
+struct BluffCardSelectionView: View {
+    @Environment(\.dismiss) var dismiss
+    @Binding var selectedCard: CardDetail?
+
+    // Generate full card set once
+    private var bluffDeck: [CardDetail] {
+        var deck: [CardDetail] = []
+        let cardData: [String: [String]] = [
+            "♥️": ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"],
+        ]
+
+        for (suit, ranks) in cardData {
+            for rank in ranks {
+                let color = (suit == "♥️" || suit == "♦️") ? "red" : "black"
+                deck.append(
+                    CardDetail(
+                        rank: rank,
+                        suit: suit,
+                        color: color,
+                        isSelected: false,
+                        status: .notPlayed,
+                        isRoundCard: false
+                    )
+                )
+            }
+        }
+
+        return deck
+    }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
+                    ForEach(bluffDeck, id: \.id) { card in
+                        CardView(
+                            card: card,
+                            isSelected: false,
+                            onTap: {
+                                selectedCard = card
+                                dismiss()
+                            },
+                            onDoubleTap: {},
+                            Cheight: 60,
+                            Cwidth: 40
+                        )
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Choose Bluff Card")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        selectedCard = nil
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }

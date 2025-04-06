@@ -18,12 +18,7 @@ enum GameStatus: String, Codable {
 
 class NewGameViewModel: ObservableObject {
     @Published var gameData: GameData
-   
-    private var gameId: String = ""
-    private var hasJoinedGame = false
     @Published var alreadyCardSelected = false
-    let gameStyle : GameStyle
-    var assignedPlayer: Player
     @Published var callBluff: Bool = false {
         didSet {
             if callBluff {
@@ -31,16 +26,30 @@ class NewGameViewModel: ObservableObject {
             }
         }
     }
+   
+    private var gameId: String = ""
+    var hasJoinedGame = false
+    
+    let gameStyle : GameStyle
+    
+    var assignedPlayer: Player
     var assignedPlayerStatus: CardStatus {
         CardStatus(rawValue: assignedPlayer.rawValue) ?? .notPlayed
     }
-    
+    var isPlayerTurn: Bool {
+        return gameData.currentPlayer == assignedPlayer
+    }
+
     init(gameStyle: GameStyle) {
         self.gameStyle = gameStyle
         self.gameData = GameData(
             playerDeck: [],
-            allPlayers: [], gameStatus: .notStarted,
-            currentPlayer: .player1
+            allPlayers: [],
+ gameStatus: .notStarted,
+            currentPlayer: .player1,
+            currentStash: Stash(
+                currentStashCards: [:]
+            )
         )
         self.assignedPlayer = .player1
         self.gameId = generateRoomCode()
@@ -51,55 +60,199 @@ class NewGameViewModel: ObservableObject {
 //            joinGame(gameId: "LOUAX")
         }
     }
-   
-    
-    func generateRoomCode(length: Int = 5) -> String {
-        let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return String((0..<length).compactMap { _ in characters.randomElement() })
-    }
-//    func joinGame(){
-//        
-//    }
-//    
-//    func joinGame(gameId: String) {
-//        self.gameId = gameId
-//
-//        FirebaseManager.shared.observeGameData(gameId: gameId) { [weak self] newData in
-//            DispatchQueue.main.async {
-//                // Add player if needed
-//                if !(newData.allPlayers.contains(player)) {
-//                    var updatedData = newData
-//                    updatedData.allPlayers.append(player)
-//                    FirebaseManager.shared.saveGameData(gameData: updatedData, gameId: gameId)
-//                }
-//                self?.gameData = newData
-//            }
-//        }
-//    }
-    
+}
+
+// MARK: - UI interactions
+extension NewGameViewModel{
     func handleDoubleTap(item: CardDetail) {
         guard isPlayerTurn else { return }
 
-        // If a card is already selected as round card, reset all others
         if alreadyCardSelected {
             for i in gameData.playerDeck.indices {
-//                if gameData.playerDeck[i].status == assignedPlayerStatus {
                     gameData.playerDeck[i].isRoundCard = false
-//                }
             }
         }
 
-        // Find the index of the tapped card
         guard let index = gameData.playerDeck.firstIndex(where: { $0.id == item.id }) else {
             return
         }
 
-        // Set isRoundCard to true for the tapped card
         gameData.playerDeck[index].isRoundCard = true
+        gameData.playerDeck[index].isSelected.toggle()
         alreadyCardSelected = true
 
-        // Rebuild the cardDetails
         gameData.updateCardDetails()
+    }
+
+    func handleCardTap(item: CardDetail) {
+        guard isPlayerTurn else { return }
+
+        // Find the index in the main playerDeck
+        guard let index = gameData.playerDeck.firstIndex(where: { $0.id == item.id/* && $0.status == assignedPlayerStatus */}) else {
+            return
+        }
+
+        // Toggle selection
+        gameData.playerDeck[index].isSelected.toggle()
+
+        // Rebuild cardDetails
+        gameData.updateCardDetails()
+    }
+    
+    func pass() {
+        if let currentIndex = gameData.allPlayers.firstIndex(of: gameData.currentPlayer) {
+            let nextIndex = (currentIndex + 1) % gameData.allPlayers.count
+            gameData.currentPlayer = gameData.allPlayers[nextIndex]
+            saveGame()
+        }
+    }
+
+    func playTurn(with bluffCard: CardDetail? = nil) {
+        guard isPlayerTurn else {
+            print("⚠️ Not your turn.")
+            return
+        }
+
+        // Get selected cards from playerDeck
+        let selectedCards = gameData.playerDeck.filter { $0.isSelected }
+
+        guard !selectedCards.isEmpty else {
+            print("⚠️ No cards selected.")
+            return
+        }
+
+        if gameData.currentStash?.currentStashCards.isEmpty ?? true {
+            // First turn of the round
+            guard let bluffCard = bluffCard else {
+                print("⚠️ No bluff card selected.")
+                return
+            }
+
+            // Create new stash
+            var newStash = Stash(currentStashCards: [:], roundCard: bluffCard)
+            newStash.currentStashCards[gameData.currentPlayer] = selectedCards
+            newStash.lastPlayer = gameData.currentPlayer
+            gameData.currentStash = newStash
+
+            print("🂠 Starting round with bluff card: \(bluffCard.rank) \(bluffCard.suit)")
+        } else {
+            // Continuing stash
+            gameData.currentStash?.currentStashCards[gameData.currentPlayer] = selectedCards
+            gameData.currentStash?.lastPlayer = gameData.currentPlayer
+        }
+
+        // Update selected card status in playerDeck (no appending, just status change)
+        gameData.playerDeck = gameData.playerDeck.map { card in
+            if selectedCards.contains(where: { $0.id == card.id }) {
+                var updated = card
+                updated.status = .inStash
+                updated.isSelected = false
+                return updated
+            } else {
+                return card
+            }
+        }
+
+        // Turn rotation
+        if let currentIndex = gameData.allPlayers.firstIndex(of: gameData.currentPlayer) {
+            let nextIndex = (currentIndex + 1) % gameData.allPlayers.count
+            gameData.currentPlayer = gameData.allPlayers[nextIndex]
+        }
+
+        // Save
+        FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
+
+        print("✅ \(selectedCards.count) cards played by \(gameData.currentPlayer.previous(in: gameData.allPlayers) ?? gameData.currentPlayer)")
+    }
+    // TODO: Fix Logic
+    func checkBluff() {
+        guard gameData.currentStash?.lastPlayer != gameData.currentPlayer else {
+            print("⚠️ Can't call bluff on yourself")
+            return
+        }
+            
+        
+        guard let roundCard = gameData.currentStash?.roundCard else {
+            print("⚠️ No round card found.")
+            return
+        }
+
+        guard let currentStashCards = gameData.currentStash?.currentStashCards else {
+            print("⚠️ No stash found.")
+            return
+        }
+
+        let allStashCards = currentStashCards.flatMap { $0.value }
+        
+        guard let lastPlayer = gameData.currentStash?.lastPlayer,
+              let playedCards = gameData.currentStash?.currentStashCards[lastPlayer] else {
+            print("⚠️ No last player or played cards found.")
+            return
+        }
+
+        let allMatch = playedCards.allSatisfy { $0.rank == roundCard.rank }
+
+        let newStatus = allMatch ? gameData.currentPlayer : lastPlayer
+
+        // Update statuses in playerDeck
+        gameData.playerDeck = gameData.playerDeck.map { card in
+            if allStashCards.contains(where: { $0.id == card.id }) {
+                var updatedCard = card
+                updatedCard.status = getCorrectStatus(player: newStatus)
+                print("Updated correct status")
+                return updatedCard
+            } else {
+                print("updated wrong status")
+                return card
+            }
+        }
+
+        if allMatch {
+            print("✅ Bluff was honest! \(gameData.currentPlayer) wrongly accused.")
+        } else {
+            print("❌ Bluff failed! \(lastPlayer) was bluffing.")
+            gameData.currentPlayer = lastPlayer
+        }
+        gameData.updateCardDetails()
+
+        // Clear the stash
+        gameData.currentStash = Stash(
+            currentStashCards: [:],
+            roundCard: nil,
+            lastPlayer: nil
+        )
+
+        // No need to call updateCardDetails(), it’s triggered by playerDeck.didSet
+        FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
+    }
+    
+    func getCorrectStatus(player: Player) -> CardStatus {
+        switch player {
+        case .player1: return .player1
+        case .player2: return .player2
+        case .player3: return .player3
+        case .player4: return .player4
+        case .player5: return .player5
+        case .player6: return .player6
+        }
+    }
+}
+
+// MARK: - Room Logic
+extension NewGameViewModel{
+    func observeGame() {
+        FirebaseManager.shared.observeGameData(gameId: gameId) { [weak self] fetchedData in
+            guard let self = self, let data = fetchedData else { return }
+            var newData = data
+            newData.updateCardDetails()
+            DispatchQueue.main.async {
+                self.gameData = newData
+            }
+        }
+    }
+    
+    func saveGame() {
+        FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
     }
     
     func joinGame(gameId: String) {
@@ -196,7 +349,7 @@ class NewGameViewModel: ObservableObject {
             playerDeck: deck,
             allPlayers: allPlayers, gameStatus: .notStarted,
             currentPlayer: allPlayers[0],
-            currentStash: currentStash
+            currentStash: Stash(currentStashCards: currentStash)
         )
         gameData.updateCardDetails()
         self.gameData = gameData
@@ -207,114 +360,23 @@ class NewGameViewModel: ObservableObject {
         // 🔁 Optional: start observing if host needs real-time updates too
         observeGame()
     }
-    
-    func observeGame() {
-        FirebaseManager.shared.observeGameData(gameId: gameId) { [weak self] fetchedData in
-            guard let self = self, let data = fetchedData else { return }
-            var newData = data
-            newData.updateCardDetails()
-            DispatchQueue.main.async {
-                self.gameData = newData
-            }
-        }
-    }
-    
-    func saveGame() {
-        FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
-    }
-    
-    var isPlayerTurn: Bool {
-        return gameData.currentPlayer == assignedPlayer
-    }
-    
-    
+}
+
+// MARK: - Helper Functions
+extension NewGameViewModel {
     func updateCurrentStash(_ toUpdate: [CardDetail]) {
-        var stash = gameData.currentStash ?? [:] // get or create new dictionary
-        stash[gameData.currentPlayer] = toUpdate
-        gameData.currentStash = stash // assign back
+        // Check if currentStash exists; if not, create a new one
+        if gameData.currentStash == nil {
+            gameData.currentStash = Stash()
+        }
 
-        // Send updated stash to the server
+        // Safely unwrap and update the currentStashCards
+        gameData.currentStash?.currentStashCards[gameData.currentPlayer] = toUpdate
+
+        // Save to Firebase
         FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
     }
-    
-    func checkBluff() {
-        guard let lastPlayer = gameData.allPlayers.last else { return }
-        guard let stash = gameData.currentStash?[lastPlayer], let firstCard = stash.first else { return }
 
-        let allMatch = stash.allSatisfy { $0.rank == firstCard.rank }
-
-        if allMatch {
-            // Transfer stash to last player
-            print("✅ Bluff was honest! Cards go to \(lastPlayer)")
-        } else {
-            // Handle bluff penalty
-            print("❌ Bluff failed! Penalty should be applied to \(lastPlayer)")
-        }
-    }
-    
-    func startPolling() {
-        // Poll server for game updates
-    }
-    
-    func pass() {
-        if let currentIndex = gameData.allPlayers.firstIndex(of: gameData.currentPlayer) {
-            let nextIndex = (currentIndex + 1) % gameData.allPlayers.count
-            gameData.currentPlayer = gameData.allPlayers[nextIndex]
-            saveGame()
-        }
-    }
-    
-    func handleCardTap(item: CardDetail) {
-        guard isPlayerTurn else { return }
-
-        // Find the index in the main playerDeck
-        guard let index = gameData.playerDeck.firstIndex(where: { $0.id == item.id/* && $0.status == assignedPlayerStatus */}) else {
-            return
-        }
-
-        // Toggle selection
-        gameData.playerDeck[index].isSelected.toggle()
-
-        // Rebuild cardDetails
-        gameData.updateCardDetails()
-    }
-    
-    func playTurn() {
-        guard isPlayerTurn else { return }
-        guard alreadyCardSelected else { return }
-
-        // Filter selected cards from player's own deck
-        let selectedCards = gameData.playerDeck.filter {
-            $0.isSelected
-        }
-
-        guard !selectedCards.isEmpty else {
-            print("⚠️ No cards selected.")
-            return
-        }
-
-        // 1. Mark selected cards as inStash and deselect
-        for i in gameData.playerDeck.indices {
-            if /*gameData.playerDeck[i].status == assignedPlayerStatus &&*/ gameData.playerDeck[i].isSelected {
-                gameData.playerDeck[i].status = .inStash
-                gameData.playerDeck[i].isSelected = false
-            }
-        }
-
-        // 2. Update cardDetails
-        gameData.updateCardDetails()
-
-        // 3. Advance turn
-        if let currentIndex = gameData.allPlayers.firstIndex(of: gameData.currentPlayer) {
-            let nextIndex = (currentIndex + 1) % gameData.allPlayers.count
-            gameData.currentPlayer = gameData.allPlayers[nextIndex]
-        }
-
-        // 4. Save to Firebase
-        FirebaseManager.shared.saveGameData(gameData: gameData, gameId: gameId)
-
-        print("✅ Played turn with \(selectedCards.count) cards.")
-    }
     
     func cardStatus(for player: Player) -> CardStatus {
         switch player {
@@ -325,5 +387,18 @@ class NewGameViewModel: ObservableObject {
         case .player5: return .player5
         case .player6: return .player6
         }
+    }
+    
+    
+    func generateRoomCode(length: Int = 5) -> String {
+        let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0..<length).compactMap { _ in characters.randomElement() })
+    }
+}
+
+extension Player: Equatable {
+    func previous(in players: [Player]) -> Player? {
+        guard let index = players.firstIndex(of: self) else { return nil }
+        return index == 0 ? players.last : players[index - 1]
     }
 }
